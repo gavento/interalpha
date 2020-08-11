@@ -1,7 +1,7 @@
-
-import utils
-import numpy as np
 import itertools
+
+import numpy as np
+
 
 def tokenize(data):
     direct_tokens = (";", "(", ")")
@@ -77,25 +77,3 @@ def print_board(b_board, w_board):
             else:
                 line.append(".")
         print("".join(line))
-
-#def load_sgf(filename):
-#    with open(filename) as f:
-#        collection = sgf.parse(f.read())
-#    print(collection.children[0].nodes[0])
-
-
-
-#t = Tokenizer(open("30va-gokifu-20191209-Mi_Yuting-Peng_Liyao.sgf").read())
-#print(t.read())
-
-#for t in tokenize(open("30va-gokifu-20191209-Mi_Yuting-Peng_Liyao.sgf").read()):
-#    print(t)
-
-if __name__ == "__main__":
-    utils = load_sgf("30va-gokifu-20191209-Mi_Yuting-Peng_Liyao.sgf")
-    for i in range(17):
-        next(sgf)
-    b, w, p = next(sgf)
-    print_board(b, w)
-
-
