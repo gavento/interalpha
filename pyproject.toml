@@ -8,6 +8,7 @@ authors = ["Tomas Gavenciak <gavento@gmail.com>"]
 python = "^3.7"
 setuptools = "^49.3.0"
 tensorflow = "^2.3.0"
+colorlog = "^4.2.1"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.17.0"

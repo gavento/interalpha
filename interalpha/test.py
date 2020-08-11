@@ -8,32 +8,6 @@ import plotly.graph_objects as go
 
 def load():
     sgf = utils.load_sgf("30va-gokifu-20191209-Mi_Yuting-Peng_Liyao.sgf")
-    all_nodes = [node for node in sgf]
-
-    #move = 13
-    move = 100
-    #move = 1
-    nodes = all_nodes[move:max(0, move - 8):-1]
-    player = nodes[0][2]
-
-    n0 = [n[0] for n in nodes]
-    n1 = [n[1] for n in nodes]
-
-    while len(n0) < 8:
-        n0.append(n0[-1])
-        n1.append(n1[-1])
-
-    utils.print_board(nodes[0][0], nodes[0][1])
-    print("PLAYER", player)
-    if player == "B":
-        lst = n0 + n1 + [np.ones((19, 19)), np.zeros((19, 19))]
-    elif player == "W":
-        lst = n1 + n0 + [np.zeros((19, 19)), np.ones((19, 19))]
-    else:
-        assert 0
-
-    inp = np.array(lst)
-    return np.moveaxis(inp, 0, -1)
 
 def show_filters(layers):
     ws, bs = layers["init_conv_block"].get_weights()
