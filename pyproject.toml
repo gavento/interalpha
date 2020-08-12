@@ -20,6 +20,7 @@ ipython = "^7.17.0"
 pytest = "^6.0.1"
 black = "^19.10b0"
 virtualenv = "^20.0.30"
+rope = "^0.17.0"
 
 [tool.poetry.scripts]
 iacli = 'cli:main'

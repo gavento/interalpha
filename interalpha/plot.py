@@ -1,8 +1,13 @@
-import tensorflow.keras as K
-import numpy as np
+import logging
+
 import matplotlib.pyplot as plt
-from plotly.subplots import make_subplots
+import numpy as np
+
 import plotly.graph_objects as go
+import tensorflow.keras as K
+from plotly.subplots import make_subplots
+
+log = logging.getLogger(__name__)
 
 
 def show_filters(layers):
