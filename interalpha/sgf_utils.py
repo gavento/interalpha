@@ -40,7 +40,7 @@ def parse_pos(poscode):
 def load_moves(data) -> list:
     b_board = np.zeros((19, 19))
     w_board = np.zeros((19, 19))
-    res = [(b_board, w_board, "B")]
+    res = [(b_board.copy(), w_board.copy(), "B")]
     for t in tokenize(data):
         if isinstance(t, str):
             continue
@@ -72,11 +72,11 @@ def print_board(b_board: np.ndarray, w_board: np.ndarray) -> str:
         for i in range(19):
             pos = (i, j)
             if b_board[pos] > 0:
-                line.append("B")
+                line.append("*")
             elif w_board[pos] > 0:
-                line.append("W")
+                line.append("o")
             elif i in hoshi and j in hoshi:
-                line.append("+")
+                line.append(",")
             else:
                 line.append(".")
         res.append("".join(line))
@@ -86,8 +86,8 @@ def print_board(b_board: np.ndarray, w_board: np.ndarray) -> str:
 def create_leela_input_from_boards(
     boards_black, boards_white, black_move: bool
 ) -> np.ndarray:
-    boards_black = list(reversed(boards_black))
-    boards_white = list(reversed(boards_white))
+    boards_black = list(reversed(boards_black))[:8]
+    boards_white = list(reversed(boards_white))[:8]
     while len(boards_black) < 8:
         boards_black.append(boards_black[-1])
         boards_white.append(boards_white[-1])

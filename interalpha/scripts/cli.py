@@ -97,11 +97,24 @@ def plot_best_moves(move, top=1, axisno=1) -> go.Scatter:
     )
 
 
+from ..leela_situation import LeelaSituation
+
+
+@cli.main.command()
+@click.argument("model_path", type=click.Path(exists=True))
+@click.argument("game_path", type=click.Path(exists=True))
+@click.argument("turn", type=int)
+def saliency(model_path, game_path, turn):
+    model = K.models.load_model(model_path)
+    s = LeelaSituation.load_sgf(model, game_path, turn)
+    log.info(f"Summary: {s.summary()}")
+
+
 @cli.main.command()
 @click.argument("model_path", type=click.Path(exists=True))
 @click.argument("game", type=click.Path(exists=True))
 @click.argument("move", type=int)
-def saliency(model_path, game, move):
+def saliency2(model_path, game, move):
 
     log.debug(f"Loading weights from {game}")
     sgf = list(sgf_utils.load_sgf(game))
