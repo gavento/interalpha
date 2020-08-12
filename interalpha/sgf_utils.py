@@ -83,26 +83,29 @@ def print_board(b_board: np.ndarray, w_board: np.ndarray) -> str:
     return "\n".join(res)
 
 
-def create_leela_input(sgf_nodes, move: int) -> np.ndarray:
-    nodes = sgf_nodes[move : max(0, move - 8) : -1]
-    player = nodes[0][2]
+def create_leela_input_from_boards(
+    boards_black, boards_white, black_move: bool
+) -> np.ndarray:
+    boards_black = list(reversed(boards_black))
+    boards_white = list(reversed(boards_white))
+    while len(boards_black) < 8:
+        boards_black.append(boards_black[-1])
+        boards_white.append(boards_white[-1])
 
+    if black_move:
+        lst = boards_black + boards_white + [np.ones((19, 19)), np.zeros((19, 19))]
+    else:
+        lst = boards_white + boards_black + [np.zeros((19, 19)), np.ones((19, 19))]
+    return np.moveaxis(np.array(lst), 0, -1)
+
+
+def create_leela_input(sgf_nodes, move: int) -> np.ndarray:
+    print(move)
+    print(np.sum(sgf_nodes[move][0]), len(sgf_nodes))
+    nodes = sgf_nodes[max(0, move - 7) : move + 1]
+    print(np.sum(nodes[0][0]), len(nodes))
+    player = nodes[0][2]
     n0 = [n[0] for n in nodes]
     n1 = [n[1] for n in nodes]
 
-    while len(n0) < 8:
-        n0.append(n0[-1])
-        n1.append(n1[-1])
-
-    log.debug(
-        f"=== Player {player}:\n{print_board(nodes[0][0], nodes[0][1])}"
-    )
-    if player == "B":
-        lst = n0 + n1 + [np.ones((19, 19)), np.zeros((19, 19))]
-    elif player == "W":
-        lst = n1 + n0 + [np.zeros((19, 19)), np.ones((19, 19))]
-    else:
-        assert 0
-
-    inp = np.array(lst)
-    return np.moveaxis(inp, 0, -1)
+    return create_leela_input_from_boards(n0, n1, player == "B")

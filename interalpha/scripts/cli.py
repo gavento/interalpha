@@ -8,6 +8,7 @@ import tensorflow as tf
 import tensorflow.keras as K
 from interalpha import plot, sgf_utils
 from plotly.subplots import make_subplots
+from typing import List
 
 from . import cli
 
@@ -16,7 +17,11 @@ log = logging.getLogger(__name__)
 SCALE_BW = [(0.0, "rgb(0,0,0)"), (1.0, "rgb(255,255,255)")]
 SCALE_YG = [(0.0, "rgb(180,180,60)"), (1.0, "rgb(40,230,40)")]
 SCALE_RYG = [(0.0, "rgb(230,40,40)"), (0.5, "rgb(180,180,60)"), (1.0, "rgb(40,230,40)")]
-SCALE_RGrG = [(0.0, "rgb(230,40,40)"), (0.5, "rgb(127,127,127)"), (1.0, "rgb(40,230,40)")]
+SCALE_RGrG = [
+    (0.0, "rgb(230,40,40)"),
+    (0.5, "rgb(127,127,127)"),
+    (1.0, "rgb(40,230,40)"),
+]
 
 
 @click.group()
