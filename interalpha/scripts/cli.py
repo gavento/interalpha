@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 import click
 import numpy as np
@@ -8,20 +9,11 @@ import tensorflow as tf
 import tensorflow.keras as K
 from interalpha import plot, sgf_utils
 from plotly.subplots import make_subplots
-from typing import List
 
+from .. import leela_situation
 from . import cli
 
 log = logging.getLogger(__name__)
-
-SCALE_BW = [(0.0, "rgb(0,0,0)"), (1.0, "rgb(255,255,255)")]
-SCALE_YG = [(0.0, "rgb(180,180,60)"), (1.0, "rgb(40,230,40)")]
-SCALE_RYG = [(0.0, "rgb(230,40,40)"), (0.5, "rgb(180,180,60)"), (1.0, "rgb(40,230,40)")]
-SCALE_RGrG = [
-    (0.0, "rgb(230,40,40)"),
-    (0.5, "rgb(127,127,127)"),
-    (1.0, "rgb(40,230,40)"),
-]
 
 
 @click.group()
@@ -32,122 +24,89 @@ def main(debug):
     )
 
 
-def compute_input_gradient(model, inputs, moves_grad, wins_grad):
-    moves_grad = tf.cast(moves_grad, tf.float32)
-    wins_grad = tf.cast(wins_grad, tf.float32)
-    inputs = tf.cast(inputs, tf.float32)
-    assert moves_grad.shape[1] == 362
-    assert len(moves_grad.shape) == 2
-    assert len(wins_grad.shape) == 1
-    with tf.GradientTape() as tape:
-        tape.watch(inputs)
-        moves, wins = model(inputs)
-
-    input_grads = tape.gradient((moves, wins), inputs, (moves_grad, wins_grad))
-    return input_grads, moves, wins
-
-
-def plot_board(input, axisno=1) -> go.Heatmap:
-    assert input.shape == (19, 19, 18)
-    black_move = bool(input[0, 0, 16] > 0.5)
-    return go.Heatmap(
-        z=(input[:, :, 0] - input[:, :, 8]) * (1 - 2 * black_move),
-        zmin=-1.0,
-        zmax=1.0,
-        colorscale=SCALE_BW,
-        showscale=False,
-        xaxis=f"x{axisno}",
-        yaxis=f"y{axisno}",
-        name="Black to play" if black_move else "White to play",
-    )
+def add_go_grid(fig, row, col, axisno=1):
+    for i in [3, 4, 9, 10, 15, 16]:
+        fig.add_shape(
+            dict(type="line", x0=i - 0.5, x1=i - 0.5, y0=-0.5, y1=18.5),
+            row=row,
+            col=col,
+            xref=f"x{axisno}",
+            yref=f"y{axisno}",
+        )
+        fig.add_shape(
+            dict(type="line", y0=i - 0.5, y1=i - 0.5, x0=-0.5, x1=18.5),
+            row=row,
+            col=col,
+            xref=f"x{axisno}",
+            yref=f"y{axisno}",
+        )
 
 
-def plot_stone_satisfaction(input, grad_win_by_input, axisno=1):
-    black_move = bool(input[0, 0, 16] > 0.5)
-    p0_in = input[:, :, 0]
-    p0_grad = grad_win_by_input[:, :, 0]
-    p1_in = input[:, :, 8]
-    p1_grad = grad_win_by_input[:, :, 8]
+def fig_for_move(s: leela_situation.LeelaSituation, move=None, prob=None):
+    fig = make_subplots(rows=1, cols=3)
+    for i in range(1, 4):
+        fig["layout"][f"yaxis{i}"]["scaleanchor"] = f"x{i}"
+        add_go_grid(fig, 1, i, i)
 
-    contrib = p0_grad * p0_in - p1_grad * p1_in
-    ext = max([np.max(contrib), -np.min(contrib), 0.0])
-    return go.Heatmap(
-        z=np.array(contrib),
-        zmin=-ext,
-        zmax=ext,
-        colorscale=SCALE_RGrG,
-        showscale=False,
-        xaxis=f"x{axisno}",
-        yaxis=f"y{axisno}",
-    )
+    # Board
+    fig.add_trace(s.plotly_board(), row=1, col=1)
+    if move is None:
+        fig.add_trace(s.plotly_all_moves(), row=1, col=1)
+    else:
+        fig.add_trace(go.Scatter(x=[move[0]], y=[move[1]], mode="markers"))
 
-
-def plot_best_moves(move, top=1, axisno=1) -> go.Scatter:
-    probs = tf.nn.softmax(move)
-    mps = [(probs[y * 19 + x], x, y) for x in range(19) for y in range(19)]
-    mps = sorted(mps, reverse=True)[:top]
-    return go.Scatter(
-        x=[m[1] for m in mps],
-        y=[m[2] for m in mps],
-        mode="markers",
-        marker=dict(
-            color=[float(m[0] / mps[0][0]) for m in mps], colorscale=SCALE_YG, size=9
+    # Saliency
+    fig.add_trace(
+        s.plotly_saliency(
+            move=move, axisno=2, opacity=1, scale=leela_situation.SCALE_BBe
         ),
-        text=[f"P={m[0]:.3f} (max={mps[0][0]:3f})" for m in mps],
+        row=1,
+        col=2,
     )
 
+    # Reinforce color (normalized)
+    fig.add_trace(s.plotly_color_preference(move=move, axisno=3), row=1, col=3)
 
-from ..leela_situation import LeelaSituation
+    if move is None:
+        title = (
+            f"{str(s)}: move probs. | win prob. saliency map | win reinforcing gradient"
+        )
+    else:
+        title = (
+            f"Move {move} with P={prob:.3f}: situation | saliency map of move | move reinforcing gradient"
+        )
 
+    fig.update_layout(
+        title=title,
+        autosize=False,
+        width=1100,
+        height=320,
+        margin=dict(l=10, r=10, b=10, t=30, pad=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
+
+def figures_to_html(figs, filename, include_plotlyjs="cdn"):
+    with open(filename, 'w') as f:
+        f.write("<html><head></head><body>" + "\n")
+        for fig in figs:
+            inner_html = fig.to_html(include_plotlyjs=include_plotlyjs).split('<body>')[1].split('</body>')[0]
+            f.write(inner_html)
+        f.write("</body></html>" + "\n")
 
 @cli.main.command()
 @click.argument("model_path", type=click.Path(exists=True))
 @click.argument("game_path", type=click.Path(exists=True))
 @click.argument("turn", type=int)
-def saliency(model_path, game_path, turn):
+@click.option("-t", "--top-moves", default=5)
+@click.option("-o", "--output", default="plot-saliency.html")
+def saliency(model_path, game_path, turn, top_moves, output):
     model = K.models.load_model(model_path)
-    s = LeelaSituation.load_sgf(model, game_path, turn)
+    s = leela_situation.LeelaSituation.load_sgf(model, game_path, turn)
     log.info(f"Summary: {s.summary()}")
 
+    figs = [fig_for_move(s, move=move[0], prob=move[1]) for move in [(None, None)] + s.top_moves[:top_moves]]
+    figures_to_html(figs, output)
 
-@cli.main.command()
-@click.argument("model_path", type=click.Path(exists=True))
-@click.argument("game", type=click.Path(exists=True))
-@click.argument("move", type=int)
-def saliency2(model_path, game, move):
-
-    log.debug(f"Loading weights from {game}")
-    sgf = list(sgf_utils.load_sgf(game))
-    log.debug(f"Create boards at move {move}")
-    in0 = sgf_utils.create_leela_input(sgf, move)
-    log.debug(f"Loading model {model_path}")
-    model = K.models.load_model(model_path)
-
-    input_grads, moves, wins = compute_input_gradient(
-        model, [in0], tf.zeros((1, 362)), tf.ones(1)
-    )
-    fig = make_subplots(rows=1, cols=2)
-    fig.add_trace(plot_board(in0), row=1, col=1)
-    fig.add_trace(plot_best_moves(moves[0], top=5), row=1, col=1)
-    fig.add_trace(plot_stone_satisfaction(in0, input_grads[0], axisno=2), row=1, col=2)
-    fig["layout"]["yaxis"]["scaleanchor"] = "x"
-    fig["layout"]["yaxis2"]["scaleanchor"] = "x2"
-    fig.show()
-
-    return
-
-    layers = dict((layer.name, layer) for layer in model.layers)
-    name = "residual_1_15_conv_block"
-    fig = plot.plot_layer(model, layers[name], in0)
-    fig.show()
-
-    return
-
-    policy, value = model.predict(inp)
-    policy = policy[0]
-    value = value[0]
-
-    print("PASS:", policy[-1])
-    actions = policy[:-1].reshape((19, 19))
-    plt.imshow(np.moveaxis(actions, 0, -1))
-    plt.show()
