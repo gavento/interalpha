@@ -48,6 +48,16 @@ def fig_for_move(s: leela_situation.LeelaSituation, move=None, prob=None):
         fig["layout"][f"yaxis{i}"]["scaleanchor"] = f"x{i}"
         add_go_grid(fig, 1, i, i)
 
+    g = s.input_grad_for_move(move)
+    l2_per_time = np.mean(np.mean(g ** 2, axis=0), axis=0) ** 0.5
+    log.debug(
+        f"Active player mean gradients: {' '.join(f'{x:.2g}' for x in l2_per_time[0:8])}"
+    )
+    log.debug(
+        f"Second player mean gradients: {' '.join(f'{x:.2g}' for x in l2_per_time[8:16])}"
+    )
+    log.debug(f"Black / white active mean gradients: {l2_per_time[16:18]}")
+
     # Board
     fig.add_trace(s.plotly_board(), row=1, col=1)
     if move is None:
@@ -72,9 +82,7 @@ def fig_for_move(s: leela_situation.LeelaSituation, move=None, prob=None):
             f"{str(s)}: move probs. | win prob. saliency map | win reinforcing gradient"
         )
     else:
-        title = (
-            f"Move {move} with P={prob:.3f}: situation | saliency map of move | move reinforcing gradient"
-        )
+        title = f"Move {move} with P={prob:.3f}: situation | saliency map of move | move reinforcing gradient"
 
     fig.update_layout(
         title=title,
@@ -89,12 +97,17 @@ def fig_for_move(s: leela_situation.LeelaSituation, move=None, prob=None):
 
 
 def figures_to_html(figs, filename, include_plotlyjs="cdn"):
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.write("<html><head></head><body>" + "\n")
         for fig in figs:
-            inner_html = fig.to_html(include_plotlyjs=include_plotlyjs).split('<body>')[1].split('</body>')[0]
+            inner_html = (
+                fig.to_html(include_plotlyjs=include_plotlyjs)
+                .split("<body>")[1]
+                .split("</body>")[0]
+            )
             f.write(inner_html)
         f.write("</body></html>" + "\n")
+
 
 @cli.main.command()
 @click.argument("model_path", type=click.Path(exists=True))
@@ -107,6 +120,9 @@ def saliency(model_path, game_path, turn, top_moves, output):
     s = leela_situation.LeelaSituation.load_sgf(model, game_path, turn)
     log.info(f"Summary: {s.summary()}")
 
-    figs = [fig_for_move(s, move=move[0], prob=move[1]) for move in [(None, None)] + s.top_moves[:top_moves]]
+    figs = [
+        fig_for_move(s, move=move[0], prob=move[1])
+        for move in [(None, None)] + s.top_moves[:top_moves]
+    ]
     figures_to_html(figs, output)
 

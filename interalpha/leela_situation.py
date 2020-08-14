@@ -113,6 +113,8 @@ class LeelaSituation:
             key=lambda p: p[1],
         )
 
+        self._input_grad_for_move_cache = {}
+
     @property
     def active_player(self):
         return ["white", "black"][self.black_move]
@@ -133,12 +135,17 @@ class LeelaSituation:
 
     def input_grad_for_move(self, move: int = None):
         "`move=None` for win-prob (tanh) gradient"
+        if move in self._input_grad_for_move_cache:
+            return self._input_grad_for_move_cache[move]
         m = np.zeros((362,), dtype=np.float32)
         if move is None:
-            return self.compute_input_grad(m, tf.ones(1))
+            g = self.compute_input_grad(m, tf.ones(1))
         else:
             m[move2idx(move)] = 1.0
-            return self.compute_input_grad(m, tf.zeros(1))
+            g = self.compute_input_grad(m, tf.zeros(1))
+        self._input_grad_for_move_cache[move] = g
+        return g
+        
 
     def __str__(self) -> str:
         return f"Turn {self.turn}, {self.active_player} to move, est. win chance {100*float(self.win_prob):.2f}%"
